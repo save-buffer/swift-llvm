@@ -117,6 +117,7 @@ public:
     SF_Const = 1U << 10,         // Symbol value is constant
     SF_Executable = 1U << 11,    // Symbol points to an executable section
                                  // (IR only)
+    SF_Comdat = 1U << 12,        // Symbol is in a COMDAT Section (COFF/PE)
   };
 
   BasicSymbolRef() = default;

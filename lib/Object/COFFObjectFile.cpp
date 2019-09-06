@@ -238,6 +238,13 @@ uint32_t COFFObjectFile::getSymbolFlags(DataRefImpl Ref) const {
   if (Symb.isUndefined())
     Result |= SymbolRef::SF_Undefined;
 
+  if (auto SecOrErr = getSymbolSection(Ref)) {
+    if (*SecOrErr != section_end()) {
+      const coff_section *Sec = getCOFFSection(**SecOrErr);
+      if (Sec->Characteristics & COFF::IMAGE_SCN_LNK_COMDAT)
+        Result |= SymbolRef::SF_Comdat;
+    }
+  }
   return Result;
 }
 
@@ -262,6 +269,20 @@ COFFObjectFile::getSymbolSection(DataRefImpl Ref) const {
 unsigned COFFObjectFile::getSymbolSectionID(SymbolRef Sym) const {
   COFFSymbolRef Symb = getCOFFSymbol(Sym.getRawDataRefImpl());
   return Symb.getSectionNumber();
+}
+
+unsigned COFFObjectFile::getSymbolComdatType(SymbolRef Sym) const {
+  assert(getSymbolFlags(Sym.getRawDataRefImpl()) & SymbolRef::SF_Comdat &&
+         "getSymbolComdatType can only be called on a symbol in a COMDAT Section");
+  unsigned SectionID = getSymbolSectionID(Sym);
+  for (auto SymbIter = symbol_begin(); SymbIter != symbol_end(); ++SymbIter) {
+    COFFSymbolRef COFFSymb = getCOFFSymbol(*SymbIter);
+    if (COFFSymb.getSectionNumber() == SectionID &&
+        COFFSymb.getStorageClass() == COFF::IMAGE_SYM_CLASS_SECTION) {
+        return COFFSymb.getSectionDefinition()->Selection;
+    }
+  }
+  return -1;
 }
 
 void COFFObjectFile::moveSectionNext(DataRefImpl &Ref) const {

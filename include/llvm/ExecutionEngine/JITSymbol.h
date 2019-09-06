@@ -55,7 +55,7 @@ template <typename T> JITTargetAddress pointerToJITTargetAddress(T *Ptr) {
 /// Flags for symbols in the JIT.
 class JITSymbolFlags {
 public:
-  using UnderlyingType = uint8_t;
+  using UnderlyingType = uint16_t;
   using TargetFlagsType = uint64_t;
 
   enum FlagNames : UnderlyingType {
@@ -67,7 +67,9 @@ public:
     Exported = 1U << 4,
     Callable = 1U << 5,
     Lazy = 1U << 6,
-    Materializing = 1U << 7,
+    ComdatSelectNoDuplicates = 1U << 7,
+    ComdatSelectAny = 1U << 8,
+    Materializing = 1U << 9,
     LLVM_MARK_AS_BITMASK_ENUM(/* LargestValue = */ Materializing)
   };
 
@@ -146,6 +148,11 @@ public:
 
   /// Returns true if the given symbol is known to be callable.
   bool isCallable() const { return (Flags & Callable) == Callable; }
+
+  /// Returns true if the given symbol is in a COMDAT Section (COFF Only).
+  bool isComdat() const {
+    return (Flags & ComdatSelectAny) || (Flags & ComdatSelectNoDuplicates);
+  }
 
   /// Get the underlying flags value as an integer.
   UnderlyingType getRawFlagsValue() const {

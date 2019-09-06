@@ -209,8 +209,8 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
   uint64_t CommonSize = 0;
   uint32_t CommonAlign = 0;
 
-  // First, collect all weak and common symbols. We need to know if stronger
-  // definitions occur elsewhere.
+  // First, collect all weak and common symbols. We need to know if
+  // other definitions occur elsewhere.
   JITSymbolResolver::LookupSet ResponsibilitySet;
   {
     JITSymbolResolver::LookupSet Symbols;

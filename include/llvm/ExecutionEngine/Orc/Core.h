@@ -196,6 +196,10 @@ public:
   /// have been emitted.
   void emit();
 
+  /// Removes symbols from Symbols that are already defined in the JITDylib if
+  /// the symbols are COMDAT Select Any.
+  void uniqueSymbols(SymbolMap &Symbols) const;
+
   /// Adds new symbols to the JITDylib and this responsibility instance.
   ///        JITDylib entries start out in the materializing state.
   ///
@@ -668,6 +672,8 @@ private:
   void transferEmittedNodeDependencies(MaterializingInfo &DependantMI,
                                        const SymbolStringPtr &DependantName,
                                        MaterializingInfo &EmittedMI);
+
+  void uniqueSymbols(SymbolMap &SymbolsToUnique) const;
 
   Error defineMaterializing(const SymbolFlagsMap &SymbolFlags);
 

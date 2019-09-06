@@ -189,6 +189,7 @@ Error RTDyldObjectLinkingLayer::onObjLoad(
     if (auto Err = R.defineMaterializing(ExtraSymbolsToClaim))
       return Err;
 
+  R.uniqueSymbols(Symbols);
   R.resolve(Symbols);
 
   if (NotifyLoaded)

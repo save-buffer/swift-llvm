@@ -11,10 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/BinaryFormat/COFF.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
+#include "llvm/IR/Comdat.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalValue.h"
+#include "llvm/Object/COFF.h"
 #include "llvm/Object/ObjectFile.h"
 
 using namespace llvm;
@@ -34,6 +37,25 @@ JITSymbolFlags llvm::JITSymbolFlags::fromGlobalValue(const GlobalValue &GV) {
            isa<Function>(cast<GlobalAlias>(GV).getAliasee()))
     Flags |= JITSymbolFlags::Callable;
 
+  if (GV.hasComdat()) {
+    switch(GV.getComdat()->getSelectionKind()) {
+    case Comdat::SelectionKind::NoDuplicates:
+      Flags |= JITSymbolFlags::ComdatSelectNoDuplicates;
+      break;
+    default:
+      Flags |= JITSymbolFlags::ComdatSelectAny;
+      break;
+#if 0
+    case Comdat::SelectionKind::Any:
+      Flags |= JITSymbolFlags::ComdatSelectAny;
+      break;
+    default:
+      assert(false);
+      llvm_unreachable("JIT only supports COMDAT_SELECT_ANY and COMDAT_SELECT_NODUPLICATES!");
+      break;
+#endif
+    }
+  }
   return Flags;
 }
 
@@ -46,6 +68,27 @@ llvm::JITSymbolFlags::fromObjectSymbol(const object::SymbolRef &Symbol) {
     Flags |= JITSymbolFlags::Common;
   if (Symbol.getFlags() & object::BasicSymbolRef::SF_Exported)
     Flags |= JITSymbolFlags::Exported;
+  if (Symbol.getFlags() & object::BasicSymbolRef::SF_Comdat) {
+    const object::COFFObjectFile *coff =
+        reinterpret_cast<const object::COFFObjectFile *>(Symbol.getObject());
+    switch(coff->getSymbolComdatType(Symbol)) {
+    case COFF::IMAGE_COMDAT_SELECT_NODUPLICATES:
+      Flags |= JITSymbolFlags::ComdatSelectNoDuplicates;
+      break;
+    default:
+      Flags |= JITSymbolFlags::ComdatSelectAny;
+      break;
+#if 0
+    case COFF::IMAGE_COMDAT_SELECT_ANY:
+      Flags |= JITSymbolFlags::ComdatSelectAny;
+      break;
+    default:
+      assert(false);
+      llvm_unreachable("JIT only supports COMDAT_SELECT_ANY and COMDAT_SELECT_NODUPLICATES!");
+      break;
+#endif
+    }
+  }
 
   auto SymbolType = Symbol.getType();
   if (!SymbolType)

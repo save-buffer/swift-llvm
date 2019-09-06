@@ -423,6 +423,10 @@ void MaterializationResponsibility::emit() {
   SymbolFlags.clear();
 }
 
+void MaterializationResponsibility::uniqueSymbols(SymbolMap &Symbols) const {
+  JD.uniqueSymbols(Symbols);
+}
+
 Error MaterializationResponsibility::defineMaterializing(
     const SymbolFlagsMap &NewSymbolFlags) {
   // Add the given symbols to this responsibility object.
@@ -729,6 +733,15 @@ SymbolNameSet ReexportsGenerator::operator()(JITDylib &JD,
   return Added;
 }
 
+void JITDylib::uniqueSymbols(SymbolMap &SymbolsToUnique) const {
+  ES.runSessionLocked([&]() {
+    for (auto I = SymbolsToUnique.begin(); I != SymbolsToUnique.end(); ++I) {
+      if (Symbols.count(I->first) && (I->second.getFlags() & JITSymbolFlags::ComdatSelectAny))
+        SymbolsToUnique.erase(I);
+    }
+  });
+}
+
 Error JITDylib::defineMaterializing(const SymbolFlagsMap &SymbolFlags) {
   return ES.runSessionLocked([&]() -> Error {
     std::vector<SymbolMap::iterator> AddedSyms;
@@ -746,6 +759,8 @@ Error JITDylib::defineMaterializing(const SymbolFlagsMap &SymbolFlags) {
       if (Added)
         AddedSyms.push_back(EntryItr);
       else {
+        if (NewFlags & JITSymbolFlags::ComdatSelectAny)
+          continue;
         // Remove any symbols already added.
         for (auto &SI : AddedSyms)
           Symbols.erase(SI);
@@ -1474,7 +1489,7 @@ Error JITDylib::defineImpl(MaterializationUnit &MU) {
         std::make_pair(KV.first, JITEvaluatedSymbol(0, NewFlags)));
 
     if (!Added) {
-      if (KV.second.isStrong()) {
+      if (KV.second.isStrong() && !(KV.second & JITSymbolFlags::ComdatSelectAny)) {
         if (EntryItr->second.getFlags().isStrong() ||
             (EntryItr->second.getFlags() & JITSymbolFlags::Materializing))
           Duplicates.insert(KV.first);
